@@ -1,13 +1,28 @@
 import Matrix
+import SuguruSolver
 
 main = do
     -- print("Cria uma matriz predefinida")
     -- let m = createMatrix [[1,2,3],[4,5,6],[7,8,9]]
     -- print(m)
-    print("Cria uma matrix 3x3 de zeros")
-    let z = zeros 3 3
-    print(z)
-    print("Coloca o elemento 1 no local 2x2 da matriz de zeros")
-    let pos = (2,2)
-    let z2 = put z pos 1
-    print(z2)
+    let suguru = [  [1,0,0,5,0],
+                    [0,0,0,0,0],
+                    [1,0,2,0,4],
+                    [0,0,0,0,0],
+                    [0,3,0,0,0]]
+    let board = [   [1,2,3,6],
+                    [4,5,10,15,20],
+                    [7,8,11,12,16],
+                    [9,13,14,17,18],
+                    [19,21,22,23,24],
+                    [25]]
+    
+    let board2 = [  [(1,1),(1,2),(1,3),(2,1)],
+                    [(1,4),(1,5),(2,5),(3,5),(4,5)],
+                    [(2,2),(2,3),(3,1),(3,2),(4,1)],
+                    [(2,4),(3,3),(3,4),(4,2),(4,3)],
+                    [(4,4),(5,1),(5,2),(5,3),(5,4)],
+                    [(5,5)]]
+    
+    print(suguru)
+    print(fillAreas1 board2 suguru)
