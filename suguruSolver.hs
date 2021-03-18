@@ -1,4 +1,6 @@
-module SuguruSolver(fillAreas1, getPossibilitiesArea, getPossibilitiesMatrix, clearPossibilities) where
+{-# LANGUAGE BlockArguments #-}
+
+module SuguruSolver(fillAreas1, getPossibilitiesArea, getPossibilitiesMatrix, clearPossibilities, checkSurroundings) where
 
     import Matrix
     import Data.List -- (delete 10 [0,0,10] removes the 10 ; delete 2 [0,1,10] does nothing without error)
@@ -68,115 +70,228 @@ module SuguruSolver(fillAreas1, getPossibilitiesArea, getPossibilitiesMatrix, cl
 
 ---------------------------------------------------------------------------------------------------------------------------------------------
 
-    {- Chama o checkSur area por área
-    checkSurroundings ::    board     -> possibilities ->   suguru   -> loop count -> possibilities-}
-    checkSurroundings :: [(Int, Int)] ->    [[[Int]]]  ->  [[[Int]]] ->     Int    ->    [[[Int]]]
-    checkSurroundings board possibilities suguru loop = --indexArea vai ser zero na chamada do checkSur
-        if loop == (length board) then []
-        else
-            (checkSur board possibilities suguru loop 0) : (checkSurroundings board possibilities suguru (loop+1))
+    -- {-
+    -- Element places example
+    -- ------------------------------------
+    -- |           |          |           |
+    -- |upper left |  upper   |upper right|
+    -- |           |  central |           |
+    -- ------------------------------------
+    -- |           |          |           |
+    -- |left wall  |  central |right wall |
+    -- |    -      |     -    |      -    |
+    -- ------------------------------------
+    -- |     -     |     -    |     -     |
+    -- |   lower   |   lower  |  lower    |
+    -- |   left    |  central |   right   |
+    -- ------------------------------------
 
-    -- tem que retornar as possibilities inteiras, não só a da área
-    checkSur board poss suguru indexArea loop = 
-        if loop == (length (board!!indexArea)) then [] -- se tiver finalizado as células da área, pare
-        else
-            if (suguru!!(fst (board!!indexArea)!!loop))!!(snd (board!!indexArea)!!loop) == 0 then --se no tabuleiro a célula dessa área conter zero
-                {- se o elemento suguru(x,y) (onde x e y vem dos elementos das áreas) for == 0, pegaremos
-                os elementos em volta dele e caso algum deles seja diferente de zero vamos retirar
-                essa possibilidade do elemento 0
-                -}
-
-                {-                                    (em poss tamb)   (em poss tamb)
-                                                    #area na board| #elemento na area| board | suguru | possibilities-}
-                removeAroundPossibilitiesFromElement     indexArea          loop       board   suguru   possibilities
-            else -- a celula nao tem zero, entao vamos remover o valor dela das possibilidades ao redor dela
-
-
-    {-
-    Element places example
-    ------------------------------------
-    |           |          |           |
-    |upper left |  upper   |upper right|
-    |           |  central |           |
-    ------------------------------------
-    |           |          |           |
-    |left wall  |  central |right wall |
-    |    -      |     -    |      -    |
-    ------------------------------------
-    |     -     |     -    |     -     |
-    |   lower   |   lower  |  lower    |
-    |   left    |  central |   right   |
-    ------------------------------------
-
+    {- A CHECAGEM DOS VALORES VAI SER FEITA DA SEGUINTE MANEIRA:
+        USANDO A MATRIZ DE AREAS, A DE POSSIBILIDADES E A SUGURU, PRIMEIRO PEGAREMOS O ELEMENTO n
+        DA MATRIZ DE ÁREAS (que retorna um index (x,y) ) E USAREMOS ESSE INDEX PARA CHECAR
+        OS ELEMENTOS EM VOLTA DESSA CELULA NO SUGURU. checaremos (x-1,y-1), (x-1,y), (x-1,y+1) e etc
+        CASO ALGUM DESSES VALORES NA SUGURU SEJA DIFERENTE DE 0, TIRAREMOS O VALOR DO ELEMENTO
+        n DA MATRIZ DE POSSIBILIDADES
     -}
-    removeAroundPossibilitiesFromElement
-    removeAroundPossibilitiesFromElement idxArea idxElem board suguru poss = 
-        -- row -> (fst ((board!!idxArea)!!idxElem))
-        -- col -> (snd ((board!!idxArea)!!idxElem))
-        -- board size -> (length suguru) (NxN)
-        if (fst ((board!!idxArea)!!idxElem)) > 0 then -- row > 0
-            if (fst ((board!!idxArea)!!idxElem)) < (length suguru) then  -- row < size
-                if (snd ((board!!idxArea)!!idxElem)) > 0 then -- col > 0
-                    if (snd ((board!!idxArea)!!idxElem)) < (length suguru) then -- col < size
-                        removeFromCentral (fst ((board!!idxArea)!!idxElem)) (snd ((board!!idxArea)!!idxElem)) idxArea idxEleme board poss suguru
-                    else
-                        removeFromRightWall
-                else
-                    removeFromLetfWall
-            else
-                if (snd ((board!!idxArea)!!idxElem)) > 0 then  -- col > 0
-                    if (snd ((board!!idxArea)!!idxElem)) < (length suguru) then -- col < size
-                        removeFromLowerCentral
-                    else
-                        removeFromLowerRight
-                else
-                    removeFromLowerLeft
-        else
-            if (snd ((board!!idxArea)!!idxElem)) > 0 then  -- col > 0
-                if (snd ((board!!idxArea)!!idxElem)) < (length suguru) then  -- col < size
-                    removeFromUpperCentral
-                else
-                    removeFromUpperRight
-            else
-                removeFromUpperLeft
 
-    {-
-        area -> number of the area in the board matrix.
-        element -> index of the element inside the area array
-        row -> row of the cell in the suguru
-        col -> col of the cell in the suguru
-        suguru -> suguru board to check the other values
-    -}
-    removeFromCentral row col idxArea idxElem board poss suguru =
-        -- value on the upper left
-        if length (getValueFrom (row-1) (col-1) board) == 1 then
-            removeFromPossibilities (getValueFrom (row-1) (col-1) board) idxArea idxElem poss 0 0
-        -- value on the upper
-        if length (getValueFrom (row-1) (col) board) == 1 then
-            removeFromPossibilities (getValueFrom (row-1) (col) board) idxArea idxElem poss 0 0
-        -- value on the upper right
-        if length (getValueFrom (row-1) (col+1) board) == 1 then
-                removeFromPossibilities (getValueFrom (row-1) (col+1) board) idxArea idxElem poss 0 0
-        -- value on the left
-        if length (getValueFrom (row) (col-1) board) == 1 then
-                removeFromPossibilities (getValueFrom (row) (col-1) board) idxArea idxElem poss 0 0
-        -- value on the right
-        if length (getValueFrom (row-1) (col+1) board) == 1 then
-                removeFromPossibilities (getValueFrom (row-1) (col+1) board) idxArea idxElem poss 0 0
-        -- value on the lower left
-        if length (getValueFrom (row+1) (col-1) board) == 1 then
-                removeFromPossibilities (getValueFrom (row+1) (col-1) board) idxArea idxElem poss 0 0
-        -- value on the lower
-        if length (getValueFrom (row+1) (col) board) == 1 then
-                removeFromPossibilities (getValueFrom (row+1) (col) board) idxArea idxElem poss 0 0
-        -- value on the lower right
-        if length (getValueFrom (row+1) (col+1) board) == 1 then
-                removeFromPossibilities (getValueFrom (row+1) (col+1) board) idxArea idxElem poss 0 0
     
-    getValueFrom row col board = (board!!row)!!col
-
-    removeFromPossibilities value idxArea idxElem (a:b:c) {-poss-} loopArea loopElem = 
-        if loopArea == idxArea then
-            a : (delete value b!!idxElem) : c
+    --checkSurroundings        areas    ->    possibilidades ->    suguru   -> idxArea ->    possibilidades
+    checkSurroundings :: [[(Int, Int)]] ->     [[[Int]]]     ->    [[Int]]  ->  Int    ->      [[[Int]]] 
+    checkSurroundings areas possibilidades suguru idxArea = do
+        if idxArea == (length areas) then
+            []
         else
-            a : removeFromPossibilities value idxArea idxElem (b:c) {-poss-} loopArea loopElem
+            (checkArea (areas!!idxArea) (possibilidades!!idxArea) idxArea 0 suguru) : (checkSurroundings areas possibilidades suguru (idxArea+1))
+
+    --checkArea      area     -> possibilidadesArea -> idxArea -> idxElem -> suguru  -> possibilidadesArea
+    checkArea :: [(Int, Int)] ->     [[Int]]        ->   Int   ->   Int   -> [[Int]] ->       [[Int]]
+    checkArea area possibilidade idxArea idxElem suguru = 
+        if idxElem == (length area) then do
+            []
+        else do
+            let x = (fst (area!!idxElem)) - 1
+            let y = (snd (area!!idxElem)) - 1
+            if x == 0 then do
+                if y == 0 then do
+                    -- UPPER LEFT
+                    let x1 = delete ((suguru!!x)!!(y+1)) (possibilidade!!idxElem)
+                    let x2 = delete ((suguru!!(x+1))!!(y+1)) x1
+                    let xf = delete ((suguru!!(x+1))!!y) x2
+                    xf : (checkArea area possibilidade idxArea (idxElem+1) suguru)
+
+                else do
+                    if y == ((length (suguru!!0))-1) then do
+                        -- UPPER RIGHT
+                        
+                        let x1 = delete ((suguru!!(x))!!(y-1)) (possibilidade!!idxElem)
+                        let x2 = delete ((suguru!!(x+1))!!(y-1)) x1
+                        let xf = delete ((suguru!!(x+1))!!(y)) x2
+                        xf : (checkArea area possibilidade idxArea (idxElem+1) suguru)
+
+                    else do
+                        -- UPPER CENTRAL
+                        let x1 = delete ((suguru!!(x))!!(y+1)) (possibilidade!!idxElem)
+                        let x2 = delete ((suguru!!(x+1))!!(y+1)) x1
+                        let x3 = delete ((suguru!!(x+1))!!(y)) x2
+                        let x4 = delete ((suguru!!(x+1))!!(y-1)) x3
+                        let xf = delete ((suguru!!(x))!!(y-1)) x4
+                        xf : (checkArea area possibilidade idxArea (idxElem+1) suguru)
+
+            else do -- nao é primeira linha
+                if x == ((length (suguru!!0))-1) then do -- ultima linha
+                    if y == 0 then do
+                        -- LOWER LEFT
+                        let x1 = delete ((suguru!!(x-1))!!(y)) (possibilidade!!idxElem)
+                        let x2 = delete ((suguru!!(x-1))!!(y+1)) x1
+                        let xf = delete ((suguru!!(x))!!(y+1)) x2
+                        xf : (checkArea area possibilidade idxArea (idxElem+1) suguru)
+
+                    else do
+                        if y == ((length (suguru!!0))-1) then do
+                            -- LOWER RIGHT
+                            let x1 = delete ((suguru!!(x-1))!!(y)) (possibilidade!!idxElem)
+                            let x2 = delete ((suguru!!(x-1))!!(y-1)) x1
+                            let xf = delete ((suguru!!(x))!!(y-1)) x2
+                            xf : (checkArea area possibilidade idxArea (idxElem+1) suguru)
+
+                        else do
+                            -- LOWER CENTRAL
+                            let x1 = delete ((suguru!!(x-1))!!(y-1)) (possibilidade!!idxElem)
+                            let x2 = delete ((suguru!!(x-1))!!(y)) x1
+                            let x3 = delete ((suguru!!(x-1))!!(y+1)) x2
+                            let x4 = delete ((suguru!!(x))!!(y-1)) x3
+                            let xf = delete ((suguru!!(x))!!(y+1)) x4
+                            xf : (checkArea area possibilidade idxArea (idxElem+1) suguru)
+                            
+                else do-- linhas do meio
+                    if y == 0 then do
+                        -- LEFT WALL
+                        let x1 = delete ((suguru!!(x-1))!!(y+1)) (possibilidade!!idxElem)
+                        let x2 = delete ((suguru!!(x-1))!!(y)) x1
+                        let x3 = delete ((suguru!!(x))!!(y+1)) x2
+                        let x4 = delete ((suguru!!(x+1))!!(y)) x3
+                        let xf = delete ((suguru!!(x+1))!!(y+1)) x4
+                        xf : (checkArea area possibilidade idxArea (idxElem+1) suguru)
+                    else do
+                        if y == ((length (suguru!!0))-1) then do
+                            -- RIGHT WALL
+                            let x1 = delete ((suguru!!(x-1))!!(y)) (possibilidade!!idxElem)
+                            let x2 = delete ((suguru!!(x-1))!!(y-1)) x1
+                            let x3 = delete ((suguru!!(x))!!(y-1)) x2
+                            let x4 = delete ((suguru!!(x+1))!!(y-1)) x3
+                            let xf = delete ((suguru!!(x+1))!!(y)) x4
+                            
+                            xf : (checkArea area possibilidade idxArea (idxElem+1) suguru)
+
+                        else do
+                            -- CENTRAL
+                            let x1 = delete ((suguru!!(x-1))!!(y)) (possibilidade!!idxElem)
+                            let x2 = delete ((suguru!!(x-1))!!(y-1)) x1
+                            let x3 = delete ((suguru!!(x))!!(y-1)) x2
+                            let x4 = delete ((suguru!!(x+1))!!(y-1)) x3
+                            let x5 = delete ((suguru!!(x+1))!!(y)) x4
+                            let x6 = delete ((suguru!!(x-1))!!(y+1)) x5
+                            let x7 = delete ((suguru!!(x))!!(y+1)) x6
+                            let xf = delete ((suguru!!(x+1))!!(y+1)) x7
+                            xf : (checkArea area possibilidade idxArea (idxElem+1) suguru)
+
+
+-- --checkSurroundings        areas    ->    possibilidades ->    suguru   -> idxArea ->    possibilidades
+--     checkSurroundings :: [[(Int, Int)]] ->     [[[Int]]]     ->    [[Int]]  ->  Int    ->      IO ()
+--     checkSurroundings areas possibilidades suguru idxArea = do
+--         if idxArea == (length areas) then
+--             print("vazio bro")
+--         else
+--             (checkArea (areas!!5) (possibilidades!!5) 5 0 suguru)
+
+--     --checkArea      area     -> possibilidadesArea -> idxArea -> idxElem -> suguru  -> possibilidadesArea
+--     checkArea :: [(Int, Int)] ->     [[Int]]        ->   Int   ->   Int   -> [[Int]] ->       IO ()
+--     checkArea area possibilidade idxArea idxElem suguru = 
+--         if idxElem == (length area) then do
+--             print("vazio")
+--         else do
+--             let x = (fst (area!!idxElem)) - 1
+--             let y = (snd (area!!idxElem)) - 1
+--             if x == 0 then do
+--                 if y == 0 then do
+--                     -- UPPER LEFT
+--                     let x1 = delete ((suguru!!x)!!(y+1)) (possibilidade!!idxElem)
+--                     let x2 = delete ((suguru!!(x+1))!!(y+1)) x1
+--                     let xf = delete ((suguru!!(x+1))!!y) x2
+--                     print(xf)
+
+--                 else do
+--                     if y == ((length (suguru!!0))-1) then do
+--                         -- UPPER RIGHT
+                        
+--                         let x1 = delete ((suguru!!(x))!!(y-1)) (possibilidade!!idxElem)
+--                         let x2 = delete ((suguru!!(x+1))!!(y-1)) x1
+--                         let xf = delete ((suguru!!(x+1))!!(y)) x2
+--                         print(xf)
+
+--                     else do
+--                         -- UPPER CENTRAL
+--                         let x1 = delete ((suguru!!(x))!!(y+1)) (possibilidade!!idxElem)
+--                         let x2 = delete ((suguru!!(x+1))!!(y+1)) x1
+--                         let x3 = delete ((suguru!!(x+1))!!(y)) x2
+--                         let x4 = delete ((suguru!!(x+1))!!(y-1)) x3
+--                         let xf = delete ((suguru!!(x))!!(y-1)) x4
+--                         print(xf)
+
+--             else do -- nao é primeira linha
+--                 if x == ((length (suguru!!0))-1) then do -- ultima linha
+--                     if y == 0 then do
+--                         -- LOWER LEFT
+--                         let x1 = delete ((suguru!!(x-1))!!(y)) (possibilidade!!idxElem)
+--                         let x2 = delete ((suguru!!(x-1))!!(y+1)) x1
+--                         let xf = delete ((suguru!!(x))!!(y+1)) x2
+--                         print(xf)
+
+--                     else do
+--                         if y == ((length (suguru!!0))-1) then do
+--                             -- LOWER RIGHT
+--                             let x1 = delete ((suguru!!(x-1))!!(y)) (possibilidade!!idxElem)
+--                             let x2 = delete ((suguru!!(x-1))!!(y-1)) x1
+--                             let xf = delete ((suguru!!(x))!!(y-1)) x2
+--                             print(xf)
+
+--                         else do
+--                             -- LOWER CENTRAL
+--                             let x1 = delete ((suguru!!(x-1))!!(y-1)) (possibilidade!!idxElem)
+--                             let x2 = delete ((suguru!!(x-1))!!(y)) x1
+--                             let x3 = delete ((suguru!!(x-1))!!(y+1)) x2
+--                             let x4 = delete ((suguru!!(x))!!(y-1)) x3
+--                             let xf = delete ((suguru!!(x))!!(y+1)) x4
+--                             print(xf)
+                            
+--                 else do-- linhas do meio
+--                     if y == 0 then do
+--                         -- LEFT WALL
+--                         let x1 = delete ((suguru!!(x-1))!!(y+1)) (possibilidade!!idxElem)
+--                         let x2 = delete ((suguru!!(x-1))!!(y)) x1
+--                         let x3 = delete ((suguru!!(x))!!(y+1)) x2
+--                         let x4 = delete ((suguru!!(x+1))!!(y)) x3
+--                         let xf = delete ((suguru!!(x+1))!!(y+1)) x4
+--                         print(xf)
+--                     else do
+--                         if y == ((length (suguru!!0))-1) then do
+--                             -- RIGHT WALL
+--                             let x1 = delete ((suguru!!(x-1))!!(y)) (possibilidade!!idxElem)
+--                             let x2 = delete ((suguru!!(x-1))!!(y-1)) x1
+--                             let x3 = delete ((suguru!!(x))!!(y-1)) x2
+--                             let x4 = delete ((suguru!!(x+1))!!(y-1)) x3
+--                             let xf = delete ((suguru!!(x+1))!!(y)) x4
+                            
+--                             print(xf)
+
+--                         else do
+--                             -- CENTRAL
+--                             let x1 = delete ((suguru!!(x-1))!!(y)) (possibilidade!!idxElem)
+--                             let x2 = delete ((suguru!!(x-1))!!(y-1)) x1
+--                             let x3 = delete ((suguru!!(x))!!(y-1)) x2
+--                             let x4 = delete ((suguru!!(x+1))!!(y-1)) x3
+--                             let x5 = delete ((suguru!!(x+1))!!(y)) x4
+--                             let x6 = delete ((suguru!!(x-1))!!(y+1)) x5
+--                             let x7 = delete ((suguru!!(x))!!(y+1)) x6
+--                             let xf = delete ((suguru!!(x+1))!!(y+1)) x7
+--                             print(xf)
